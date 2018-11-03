@@ -2,49 +2,66 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <omp.h>
 
 #define DEBUG 0
 
-__global__ void find_minimum_kernel(int *array, int *min, int *mutex, unsigned int n) {
-	unsigned int index = threadIdx.x + blockIdx.x * blockDim.x;
-	unsigned int stride = gridDim.x * blockDim.x;
-	unsigned int offset = 0;
-	int temp_min = 1000;
-
-	__shared__ int cache[256];
-
-	while(index + offset < n) {
-		temp_min = fminf(temp_min, array[index + offset]);
-		offset += stride;
-	}
-
-	cache[threadIdx.x] = temp_min;
-
-	__syncthreads();
-
-	unsigned int iii = blockDim.x / 2;
-	while(iii > 0) {
-		if(threadIdx.x < iii) {
-			cache[threadIdx.x] = fminf(cache[threadIdx.x], cache[threadIdx.x + iii]);
-		}
-		__syncthreads();
-		iii >>= 1;
-	}
-
-	if(threadIdx.x == 0) {
-		while(atomicCAS(mutex, 0, 1) != 0); // acquire mutex
-		*min = fminf(*min, cache[0]);
-		atomicExch(mutex, 0); // unlock mutex
-	}
+// probably wont need this after some updates
+void minDistance(int *dist, int *used, int *min_index) {
+	int min = INT_MAX; 
+   
+   for (int v = 0; v < V; v++)
+     if (used[v] == false && dist[v] <= min) 
+         min = dist[v], *min_index = v;
 }
 
 void dijktra(int **graph, int size, int src) {
-	for(int iii = 0; iii < size; iii++) {
-		for(int jjj = 0; jjj < size; jjj++) {
-			printf("%d ", graph[iii][jjj]);
-		}
-		printf("\n");
+	// TODO fix this shit
+	bool *h_used;
+	bool *d_used;
+	int *h_dist;
+	int *d_dist;
+	int *h_mutex;
+	int *d_mutex;
+	int *h_min;
+	int *d_min;
+
+	// allocate stuff
+	h_used = (bool*) malloc(sizeof(bool) * size);
+	h_dist = (int*) malloc(sizeof(int) * size);
+	h_mutex = (int*) malloc(sizeof(int));
+	h_min = (int*) malloc(sizeof(int));
+
+	cudaMalloc((void**) &d_used, sizeof(int) * size);
+	cudaMalloc((void**) &d_min, sizeof(int));
+	cudaMalloc((void**) &d_mutex, sizeof(int));
+	cudaMalloc((void**) &d_dist, sizeof(int) * size);
+
+	// computations
+	#pragma omp parallel for
+	for(int iii = 0; iii < size; iii++){
+		used[iii] = false; h_dist[iii] = INT_MAX;
 	}
+
+	h_dist[src] = 0;
+	dim3 thread_size = 256; // can't use variable size so everything is hard-coded
+	dim3 block_size = 256; // 
+
+	for(int iii = 0; iii < size = 1; iii++) {
+		minDistance(h_dist, h_used, h_min);
+		h_used[*h_min] = true;
+	}
+
+	// free later
+	free(h_used);
+	free(h_dist);
+	free(h_mutex);
+	free(h_min);
+	cudaFree(d_used);
+	cudaFree(d_dist);
+	cudaFree(d_mutex);
+	cudaFree(d_min);
+
 }
 
 int** read_file(char *file_name, int *vertices) {
@@ -59,14 +76,15 @@ int** read_file(char *file_name, int *vertices) {
 	}
 
 	fscanf(f, "%d\n", vertices);
+	
 	v = *vertices; // this is meant for readability later, not any optimizations
 	incidence_matrix = (int**) malloc(sizeof(int*) * v);
+	#pragma omp parallel for
 	for(int iii = 0; iii < v; iii++) incidence_matrix[iii] = (int*)malloc(v * sizeof(int));
+
 	for(int iii = 0; iii < v; iii++) {
-		printf("iii is %d\n", iii);
 		for(int jjj = 0; jjj < v; jjj++) {
 			fscanf(f, "%d", &incidence_matrix[iii][jjj]);
-			printf("%d\n", incidence_matrix[iii][jjj]);
 		}
 	}
 
@@ -85,9 +103,9 @@ int main(int argc, char *argv[]) {
 	
 	incidence_matrix = read_file(argv[1], &vertices);
 
-	printf("calling dijktra\n");
-
 	dijktra(incidence_matrix, vertices, atoi(argv[2]));
+
+	free(incidence_matrix);
 
 	return 0;
 }
