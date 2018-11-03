@@ -47,30 +47,34 @@ void dijktra(int **graph, int size, int src) {
 	}
 }
 
-int read_file(char *file_name, int *vertices, int **incidence_matrix) {
+int** read_file(char *file_name, int *vertices) {
 	FILE *f;
+	int **incidence_matrix;
 	int v;
 
 	f = fopen(file_name, "r");
 	if(f == NULL) {
-		return 1;
+		printf("Error reading file\n");
+		exit(1);
 	}
 
 	fscanf(f, "%d\n", vertices);
 	v = *vertices; // this is meant for readability later, not any optimizations
-	*incidence_matrix = (int*) malloc(sizeof(int) * v * v);
+	incidence_matrix = (int**) malloc(sizeof(int*) * v);
+	for(int iii = 0; iii < v; iii++) incidence_matrix[iii] = (int*)malloc(v * sizeof(int));
 	for(int iii = 0; iii < v; iii++) {
+		printf("iii is %d\n", iii);
 		for(int jjj = 0; jjj < v; jjj++) {
-			int offset = iii * v + jjj;
-			fscanf(f, "%d", &incidence_matrix[offset]);
+			fscanf(f, "%d", &incidence_matrix[iii][jjj]);
+			printf("%d\n", incidence_matrix[iii][jjj]);
 		}
 	}
 
-	return 0;
+	return incidence_matrix;
 }
 
 int main(int argc, char *argv[]) {
-	int *incidence_matrix;
+	int **incidence_matrix;
 	int vertices;
 
 	if(argc != 3) {
@@ -79,12 +83,11 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 	
-	if(read_file(argv[1], &vertices, &incidence_matrix)) {
-		printf("Error reading file\n");
-		exit(1);
-	}
+	incidence_matrix = read_file(argv[1], &vertices);
 
-	dijktra((int**) incidence_matrix, vertices, atoi(argv[2]));
+	printf("calling dijktra\n");
+
+	dijktra(incidence_matrix, vertices, atoi(argv[2]));
 
 	return 0;
 }
