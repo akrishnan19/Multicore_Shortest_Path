@@ -12,6 +12,7 @@
     3. An empty line at the end of the file to signify EOF
 		
 		```e.g:
+		6
 		0 4 0 0 0 0 0 8 0 
 		4 0 8 0 0 0 0 11 0 
 		.
