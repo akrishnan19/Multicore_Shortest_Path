@@ -38,201 +38,55 @@ __global__ void find_minimum_kernel(int *array, int *min, int *mutex, unsigned i
 	}
 }
 
-__global__ void find_last_digit_kernel(int *arrayA, int *arrayB, unsigned int n) {
-	unsigned int index = threadIdx.x + blockIdx.x * blockDim.x;
-	unsigned int stride = gridDim.x * blockDim.x;
-	unsigned int offset = 0;
-
-	while(index + offset < n) {
-		arrayB[index + offset] = arrayA[index + offset] % 10;
-		offset += stride;
-	}
-
-	__syncthreads();
-
-}
-
-typedef struct {
-  int *array;
-  size_t used;
-  size_t size;
-} Array;
-
-void initArray(Array *a, size_t initialSize) {
-  a->array = (int *)malloc(initialSize * sizeof(int));
-  a->used = 0;
-  a->size = initialSize;
-}
-
-void insertArray(Array *a, int element) {
-  // a->used is the number of used entries, because a->array[a->used++] updates a->used only *after* the array has been accessed.
-  // Therefore a->used can go up to a->size 
-  if (a->used == a->size) {
-    a->size *= 2;
-    a->array = (int *)realloc(a->array, a->size * sizeof(int));
-  }
-  a->array[a->used++] = element;
-}
-
-void freeArray(Array *a) {
-  free(a->array);
-  a->array = NULL;
-  a->used = a->size = 0;
-}
-
-void find_max(Array *a, int* h_min) { // passing the dynamic array
-	unsigned int size = a->used;
-	int *h_array;
-	int *d_array;
-	int *d_min;
-	int *d_mutex;
-	int *h_mutex;
-
-	// allocate to memory
-	h_array = (int*) malloc(sizeof(int) * size);
-	h_mutex = (int*) malloc(sizeof(int));
-	cudaMalloc((void**) &d_array, sizeof(int) * size);
-	cudaMalloc((void**) &d_min, sizeof(int));
-	cudaMalloc((void**) &d_mutex, sizeof(int));
-	*h_mutex = 0;
-
-	// create a copy of the dynamic array to pass to the gpu
+void dijktra(int **graph, int size, int src) {
 	for(int iii = 0; iii < size; iii++) {
-		h_array[iii] = a->array[iii];
+		for(int jjj = 0; jjj < size; jjj++) {
+			printf("%d ", graph[iii][jjj]);
+		}
+		printf("\n");
 	}
-
-	// copy from host to device
-	cudaMemcpy(d_array, h_array, sizeof(int) * size, cudaMemcpyHostToDevice);
-	cudaMemcpy(d_min, h_min, sizeof(int), cudaMemcpyHostToDevice);
-	cudaMemcpy(d_mutex, h_mutex, sizeof(int), cudaMemcpyHostToDevice);
-
-	// call to gpu kernel
-	dim3 thread_size = 256; // can't use variable size so everything is hard-coded
-	dim3 block_size = 256; // 
-	find_minimum_kernel<<< block_size, thread_size >>>(d_array, d_min, d_mutex, size);
-
-	// copy from device back to host
-	cudaMemcpy(h_min, d_min, sizeof(int), cudaMemcpyDeviceToHost);
-
-	// free memory
-	free(h_array);
-	free(h_mutex);
-	cudaFree(d_array);
-	cudaFree(d_min);
-	cudaFree(d_mutex);
 }
 
-void find_last_digit(Array *a, int* h_arrayB) { // passing the dynamic array
-	unsigned int size = a->used;
-	int *h_arrayA;
-	int *d_arrayA;
-	int *d_arrayB;
+int read_file(char *file_name, int *vertices, int **incidence_matrix) {
+	FILE *f;
+	int v;
 
-	// allocate to memory
-	h_arrayA = (int*) malloc(sizeof(int) * size);
-	cudaMalloc((void**) &d_arrayA, sizeof(int) * size);
-	cudaMalloc((void**) &d_arrayB, sizeof(int) * size);
-
-	// create a copy of the dynamic array to pass to the gpu
-	for(int iii = 0; iii < size; iii++) {
-		h_arrayA[iii] = a->array[iii];
+	f = fopen(file_name, "r");
+	if(f == NULL) {
+		return 1;
 	}
 
-	// copy from host to device
-	cudaMemcpy(d_arrayA, h_arrayA, sizeof(int) * size, cudaMemcpyHostToDevice);
-
-	// call to gpu kernel
-	dim3 thread_size = 256; // can't use variable size so everything is hard-coded
-	dim3 block_size = 256; // 
-	find_last_digit_kernel<<< block_size, thread_size >>>(d_arrayA, d_arrayB, size);
-
-	// copy from device back to host
-	cudaMemcpy(h_arrayB, d_arrayB, sizeof(int) * size, cudaMemcpyDeviceToHost);
-
-	// free memory
-	free(h_arrayA);
-	cudaFree(d_arrayA);
-	cudaFree(d_arrayB);
-}
-
-void part_a(Array a) {
-	int *h_min;
-	FILE *dest;
-
-	dest = fopen("q1a.txt", "w+");
-
-	h_min = (int*) malloc(sizeof(int));
-	*h_min = 1000;
-	find_max(&a, h_min);
-
-	fprintf(dest, "%d", *h_min);
-
-	#if DEBUG
-	*h_min = 1000;
-	for(int iii = 0; iii < a.used; iii++) {
-		if(a.array[iii] < *h_min) *h_min = a.array[iii];
+	fscanf(f, "%d\n", vertices);
+	v = *vertices; // this is meant for readability later, not any optimizations
+	*incidence_matrix = (int*) malloc(sizeof(int) * v * v);
+	printf("matrix made\n");
+	for(int iii = 0; iii < v; iii++) {
+		printf("iii = %d\n", iii);
+		for(int jjj = 0; jjj < v; jjj++) {
+			if(!fscanf(f, "%d", &incidence_matrix[iii][jjj])) break;
+			else printf("%d\n", incidence_matrix[iii][jjj]);
+		}
 	}
-	printf("minimum value from cpu: %d\n", *h_min);
-	#endif
-	fclose(dest);
-	free(h_min);
-}
 
-void part_b(Array a) {
-	int *h_arrayB;
-	FILE *dest;
-
-	dest = fopen("q1b.txt", "w+");
-
-	h_arrayB = (int*) malloc(sizeof(int) * a.used);
-	find_last_digit(&a, h_arrayB);
-
-	// printf("Calculations complete:\n");
-	for(int iii = 0; iii < a.used - 1; iii++) {
-		fprintf(dest, "%d, ", h_arrayB[iii]);
-	}
-	fprintf(dest, "%d", h_arrayB[a.used - 1]);
-
-	#if DEBUG
-	printf("CPU calculations:\n");
-	for(int iii = 0; iii < a.used; iii++) {
-		printf("%d, ", a.array[iii] % 10);
-	}
-	printf("\n");
-	#endif
-	fclose(dest);
-	free(h_arrayB);
+	return 0;
 }
 
 int main(int argc, char *argv[]) {
-	char *file_path;
-	FILE *f1;
-	int ins_elem;
-	
-	Array a; // dynamically growing array
+	int *incidence_matrix;
+	int vertices;
 
-	if(argc < 2) {
+	if(argc != 3) {
 		printf("Incorrect usage\n"); // sanity check
+		printf("Correct usage: ./dijktra path_to_file source_vertex");
+		exit(1);
+	}
+	
+	if(read_file(argv[1], &vertices, &incidence_matrix)) {
+		printf("Error reading file\n");
 		exit(1);
 	}
 
-	file_path = argv[1];
-	f1 = fopen(file_path, "r");
-	
-	initArray(&a, 1);
-	
-	fscanf(f1, "%d", &ins_elem);
-	insertArray(&a, ins_elem);
+	dijktra((int**) incidence_matrix, vertices, atoi(argv[2]));
 
-	while(fscanf(f1, ", %d", &ins_elem) == 1) {
-		insertArray(&a, ins_elem);
-	}
-
-	part_a(a);
-	part_b(a);
-
-	freeArray(&a);
-	fclose(f1);
-	
 	return 0;
 }

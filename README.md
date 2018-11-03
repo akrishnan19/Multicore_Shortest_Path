@@ -5,10 +5,10 @@ Instructions for use:
 
 Structure of input file:
 	1) Line 1 contains number of vertices
-	2) Incidence matrix, with a new row in a new line and values in a row separated by a space and ","
+	2) Incidence matrix, with a new row in a new line and values in a row separated by a space
 		e.g:
-		0, 4, 0, 0, 0, 0, 0, 8, 0
-		4, 0, 8, 0, 0, 0, 0, 11, 0
+		0 4 0 0 0 0 0 8 0
+		4 0 8 0 0 0 0 11 0
 		.
 		.
 		.
