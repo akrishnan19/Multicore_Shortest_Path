@@ -59,12 +59,10 @@ int read_file(char *file_name, int *vertices, int **incidence_matrix) {
 	fscanf(f, "%d\n", vertices);
 	v = *vertices; // this is meant for readability later, not any optimizations
 	*incidence_matrix = (int*) malloc(sizeof(int) * v * v);
-	printf("matrix made\n");
 	for(int iii = 0; iii < v; iii++) {
-		printf("iii = %d\n", iii);
 		for(int jjj = 0; jjj < v; jjj++) {
-			if(!fscanf(f, "%d", &incidence_matrix[iii][jjj])) break;
-			else printf("%d\n", incidence_matrix[iii][jjj]);
+			int offset = iii * v + jjj;
+			fscanf(f, "%d", &incidence_matrix[offset]);
 		}
 	}
 
