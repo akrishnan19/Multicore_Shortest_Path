@@ -24,7 +24,7 @@ __global__ void find_minimum_kernel(int *dist, bool* used, int* min, int *mutex,
 	__shared__ int cache[256];
 
 	while(index + offset < n) {
-		if(dist[index + offset] != 0){
+		if((dist[index + offset] != 0) && (d_used[index+offset] == false)){
 			temp_min = fminf(temp_min, dist[index + offset]);
 		}
 		offset += stride;
