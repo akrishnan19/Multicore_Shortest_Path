@@ -5,6 +5,6 @@
 default:
 	@echo Please specify make target: dijkstra, clean
 dijkstra:
-	nvcc -arch=compute_35 -code=sm_35 -o dijkstra.out dijkstra.cu
+	nvcc -o dijkstra.out dijkstra.cu
 clean:
 	rm -f dijkstra.out 

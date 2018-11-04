@@ -4,17 +4,6 @@
 #include <limits.h>
 #include <omp.h>
 
-#define DEBUG 0
-
-// probably wont need this after some updates
-void minDistance(int *dist, int *used, int *min_index, int numV) {
-	int min = INT_MAX; 
-   
-   for (int v = 0; v < numV; v++)
-     if (used[v] == false && dist[v] <= min && dist[v] != 0) 
-         min = dist[v], *min_index = v;
-}
-
 __global__ void find_minimum_kernel(int *dist, bool* used, int* min, int* min_index, int *mutex, unsigned int n) {
 	unsigned int index = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int stride = gridDim.x * blockDim.x;
@@ -26,7 +15,7 @@ __global__ void find_minimum_kernel(int *dist, bool* used, int* min, int* min_in
 	__shared__ int cache2[256];
 
 	while(index + offset < n) {
-		if((dist[index + offset] != 0) && (used[index+offset] == false)){
+		if((used[index+offset] == false)) {
 			int temp_temp_min = temp_min;
 			temp_min = fminf(temp_min, dist[index + offset]);
 			if(temp_temp_min != temp_min){
@@ -65,24 +54,27 @@ __global__ void find_minimum_kernel(int *dist, bool* used, int* min, int* min_in
 	}
 }
 
+void printResults(int dist[], int n) { 
+	printf("Vertex\t\tDistance from Source\n");
+	for (int i = 0; i < n; i++)
+		printf("%d\t\t%d\n", i, dist[i]);
+} 
+
 void dijktra(int **graph, int size, int src) {
-	// TODO fix this shit
 	bool *h_used;
 	bool *d_used;
 	int *h_dist;
 	int *d_dist;
 	int *h_mutex;
 	int *d_mutex;
-	int *h_min;
 	int *d_min;
 	int *d_min_index;
+	int MAX = INT_MAX;
 
 	// allocate stuff
 	h_used = (bool*) malloc(sizeof(bool) * size);
 	h_dist = (int*) malloc(sizeof(int) * size);
 	h_mutex = (int*) malloc(sizeof(int));
-	h_min = (int*) malloc(sizeof(int));
-	
 
 	cudaMalloc((void**) &d_used, sizeof(int) * size);
 	cudaMalloc((void**) &d_min, sizeof(int));
@@ -102,37 +94,44 @@ void dijktra(int **graph, int size, int src) {
 	dim3 BLOCK_SIZE = 256; // 
 
 	for(int iii = 0; iii < size - 1; iii++) {
-		int min_calculated = INT_MAX;
-		printf("Starting execution %d of %d\n", iii, size - 1);
-		// minDistance(h_dist, h_used, h_min, *size);// more efficient to run on CPU than offloading to GPU
+		int min_calculated;
+
+		cudaMemcpy(d_min, &MAX, sizeof(int), cudaMemcpyHostToDevice);
+		cudaMemset((void*) d_min_index, -1, sizeof(int));
 		cudaMemcpy(d_used, h_used, sizeof(bool)*size, cudaMemcpyHostToDevice);
+		cudaMemcpy(d_dist, h_dist, sizeof(int)*size, cudaMemcpyHostToDevice);
+
 		find_minimum_kernel<<< BLOCK_SIZE, THREAD_SIZE >>>(d_dist, d_used, d_min, d_min_index, d_mutex, size);// GPU implementation anyway - could we check the entire graph
+
 		cudaMemcpy(&min_calculated, d_min_index, sizeof(int), cudaMemcpyDeviceToHost);
-		cudaMemcpy(h_dist, d_dist, sizeof(int)*size, cudaMemcpyDeviceToHost);
-		printf("Successfully read min at %d\n", min_calculated);
+		if(min_calculated == -1) {
+			printf("No min calculated. This is bad.\n");
+			exit(-1);
+		}
 		h_used[min_calculated] = true;
 
-		for(int jjj = 0; jjj < size; jjj++){
-			if(!h_used[iii] &&
-				(h_dist[min_calculated] != INT_MAX) &&
-				(h_dist[min_calculated] + graph[min_calculated][jjj] < h_dist[jjj]) &&
-				graph[min_calculated][jjj]){
-					h_dist[jjj] = h_dist[min_calculated] + graph[min_calculated][jjj];
-
+		#pragma omp parallel for
+		for(int jjj = 0; jjj < size; jjj++) {
+			if(!h_used[jjj] &&
+			(h_dist[min_calculated] != INT_MAX) &&
+			(h_dist[min_calculated] + graph[min_calculated][jjj] < h_dist[jjj]) &&
+			graph[min_calculated][jjj]) {
+				h_dist[jjj] = h_dist[min_calculated] + graph[min_calculated][jjj];
 			}
 		}
 	}
+
+	printResults(h_dist, size);
 
 	// free later
 	free(h_used);
 	free(h_dist);
 	free(h_mutex);
-	free(h_min);
 	cudaFree(d_used);
 	cudaFree(d_dist);
 	cudaFree(d_mutex);
 	cudaFree(d_min);
-
+	cudaFree(d_min_index);
 }
 
 int** read_file(char *file_name, int *vertices) {
