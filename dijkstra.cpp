@@ -1,4 +1,3 @@
-
 // A C++ program for Dijkstra's single source shortest path algorithm. 
 // The program is for adjacency matrix representation of the graph 
    
@@ -38,7 +37,8 @@ void dijkstra(int graph[V][V], int src) {
      bool sptSet[V]; // sptSet[i] will true if vertex i is included in shortest 
                      // path tree or shortest distance from src to i is finalized 
    
-     // Initialize all distances as INFINITE and stpSet[] as false 
+     // Initialize all distances as INFINITE and stpSet[] as false
+     #pragma omp parallel for 
      for (int i = 0; i < V; i++) 
         dist[i] = INT_MAX, sptSet[i] = false; 
    
@@ -46,6 +46,7 @@ void dijkstra(int graph[V][V], int src) {
      dist[src] = 0; 
    
      // Find shortest path for all vertices 
+     #pragma omp parallel for
      for (int count = 0; count < V-1; count++) { 
        // Pick the minimum distance vertex from the set of vertices not 
        // yet processed. u is always equal to src in the first iteration. 
