@@ -3,6 +3,8 @@
 #'make clean' to clean up the place
 
 default:
+	@echo Please specify make target: dijkstra, clean
+dijkstra:
 	nvcc -arch=compute_35 -code=sm_35 -o dijkstra.out dijkstra.cu
 clean:
-	rm dijkstra.out 
+	rm -f dijkstra.out 

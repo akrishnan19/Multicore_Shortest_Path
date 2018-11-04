@@ -7,12 +7,47 @@
 #define DEBUG 0
 
 // probably wont need this after some updates
-void minDistance(int *dist, int *used, int *min_index) {
+void minDistance(int *dist, int *used, int *min_index, int numV) {
 	int min = INT_MAX; 
    
-   for (int v = 0; v < V; v++)
-     if (used[v] == false && dist[v] <= min) 
+   for (int v = 0; v < numV; v++)
+     if (used[v] == false && dist[v] <= min && dist[v] != 0) 
          min = dist[v], *min_index = v;
+}
+
+__global__ void find_minimum_kernel(int *dist, int *min, int *mutex, unsigned int n) {
+	unsigned int index = threadIdx.x + blockIdx.x * blockDim.x;
+	unsigned int stride = gridDim.x * blockDim.x;
+	unsigned int offset = 0;
+	int temp_min = INT_MAX;
+
+	__shared__ int cache[256];
+
+	while(index + offset < n) {
+		if(dist[index + offset] != 0){
+			temp_min = fminf(temp_min, dist[index + offset]);
+		}
+		offset += stride;
+	}
+
+	cache[threadIdx.x] = temp_min;
+
+	__syncthreads();
+
+	unsigned int iii = blockDim.x / 2;
+	while(iii > 0) {
+		if(threadIdx.x < iii) {
+			cache[threadIdx.x] = fminf(cache[threadIdx.x], cache[threadIdx.x + iii]);
+		}
+		__syncthreads();
+		iii >>= 1;
+	}
+
+	if(threadIdx.x == 0) {
+		while(atomicCAS(mutex, 0, 1) != 0); // acquire mutex
+		*min = fminf(*min, cache[0]);
+		atomicExch(mutex, 0); // unlock mutex
+	}
 }
 
 void dijktra(int **graph, int size, int src) {
@@ -40,16 +75,29 @@ void dijktra(int **graph, int size, int src) {
 	// computations
 	#pragma omp parallel for
 	for(int iii = 0; iii < size; iii++){
-		used[iii] = false; h_dist[iii] = INT_MAX;
+		h_used[iii] = false;
+		h_dist[iii] = INT_MAX;
 	}
 
 	h_dist[src] = 0;
-	dim3 thread_size = 256; // can't use variable size so everything is hard-coded
-	dim3 block_size = 256; // 
+	dim3 THREAD_SIZE = 256; // can't use variable size so everything is hard-coded
+	dim3 BLOCK_SIZE = 256; // 
 
-	for(int iii = 0; iii < size = 1; iii++) {
-		minDistance(h_dist, h_used, h_min);
-		h_used[*h_min] = true;
+	for(int iii = 0; iii < size - 1; iii++) {
+		int min_calculated = INT_MAX;
+		// minDistance(h_dist, h_used, h_min, *size);// more efficient to run on CPU than offloading to GPU
+		find_minimum_kernel<<< BLOCK_SIZE, THREAD_SIZE >>>(d_dist, d_min, d_mutex, size);// GPU implementation anyway
+		min_calculated = *d_min;// quality-of-life variable
+		h_used[min_calculated] = true;
+
+		for(int jjj = 0; jjj < size; jjj++){
+			if(!h_used[iii] &&
+				(d_dist[min_calculated] != INT_MAX) &&
+				(d_dist[min_calculated] + graph[min_calculated][jjj] < d_dist[jjj])
+				graph[min_calculated][jjj]){
+					d_dist[jjj] = d_dist[min_calculated] + graph[min_calculated][jjj];
+			}
+		}
 	}
 
 	// free later
@@ -80,7 +128,9 @@ int** read_file(char *file_name, int *vertices) {
 	v = *vertices; // this is meant for readability later, not any optimizations
 	incidence_matrix = (int**) malloc(sizeof(int*) * v);
 	#pragma omp parallel for
-	for(int iii = 0; iii < v; iii++) incidence_matrix[iii] = (int*)malloc(v * sizeof(int));
+	for(int iii = 0; iii < v; iii++){
+		incidence_matrix[iii] = (int*)malloc(v * sizeof(int));
+	}
 
 	for(int iii = 0; iii < v; iii++) {
 		for(int jjj = 0; jjj < v; jjj++) {
