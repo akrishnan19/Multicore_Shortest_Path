@@ -7,10 +7,10 @@
 #define DEBUG 0
 
 // probably wont need this after some updates
-void minDistance(int *dist, int *used, int *min_index) {
+void minDistance(int *dist, int *used, int *min_index, int numV) {
 	int min = INT_MAX; 
    
-   for (int v = 0; v < V; v++)
+   for (int v = 0; v < numV; v++)
      if (used[v] == false && dist[v] <= min) 
          min = dist[v], *min_index = v;
 }
@@ -40,16 +40,19 @@ void dijktra(int **graph, int size, int src) {
 	// computations
 	#pragma omp parallel for
 	for(int iii = 0; iii < size; iii++){
-		used[iii] = false; h_dist[iii] = INT_MAX;
+		h_used[iii] = false;
+		h_dist[iii] = INT_MAX;
 	}
 
 	h_dist[src] = 0;
 	dim3 thread_size = 256; // can't use variable size so everything is hard-coded
 	dim3 block_size = 256; // 
 
-	for(int iii = 0; iii < size = 1; iii++) {
-		minDistance(h_dist, h_used, h_min);
+	for(int iii = 0; iii < size - 1; iii++) {
+		minDistance(h_dist, h_used, h_min, *size);// more efficient to run on CPU than offloading to GPU
 		h_used[*h_min] = true;
+
+
 	}
 
 	// free later
