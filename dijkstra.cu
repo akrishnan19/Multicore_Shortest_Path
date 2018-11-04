@@ -15,29 +15,40 @@ void minDistance(int *dist, int *used, int *min_index, int numV) {
          min = dist[v], *min_index = v;
 }
 
-__global__ void find_minimum_kernel(int *dist, bool* used, int* min, int *mutex, unsigned int n) {
+__global__ void find_minimum_kernel(int *dist, bool* used, int* min, int* min_index, int *mutex, unsigned int n) {
 	unsigned int index = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int stride = gridDim.x * blockDim.x;
 	unsigned int offset = 0;
 	int temp_min = INT_MAX;
+	int temp_min_index = -1;
 
 	__shared__ int cache[256];
+	__shared__ int cache2[256];
 
 	while(index + offset < n) {
-		if((dist[index + offset] != 0) && (d_used[index+offset] == false)){
+		if((dist[index + offset] != 0) && (used[index+offset] == false)){
+			int temp_temp_min = temp_min;
 			temp_min = fminf(temp_min, dist[index + offset]);
+			if(temp_temp_min != temp_min){
+				temp_min_index = index + offset;
+			}
 		}
 		offset += stride;
 	}
 
 	cache[threadIdx.x] = temp_min;
+	cache2[threadIdx.x] = temp_min_index;
 
 	__syncthreads();
 
 	unsigned int iii = blockDim.x / 2;
 	while(iii > 0) {
 		if(threadIdx.x < iii) {
+			int temp_temp_min = cache[threadIdx.x];
 			cache[threadIdx.x] = fminf(cache[threadIdx.x], cache[threadIdx.x + iii]);
+			if(temp_temp_min != cache[threadIdx.x]){
+				cache2[threadIdx.x] = cache2[threadIdx.x + iii];
+			}
 		}
 		__syncthreads();
 		iii >>= 1;
@@ -45,7 +56,11 @@ __global__ void find_minimum_kernel(int *dist, bool* used, int* min, int *mutex,
 
 	if(threadIdx.x == 0) {
 		while(atomicCAS(mutex, 0, 1) != 0); // acquire mutex
+		int temp_temp_min = *min;
 		*min = fminf(*min, cache[0]);
+		if(temp_temp_min != *min){
+			*min_index = cache2[0];
+		}
 		atomicExch(mutex, 0); // unlock mutex
 	}
 }
@@ -60,6 +75,7 @@ void dijktra(int **graph, int size, int src) {
 	int *d_mutex;
 	int *h_min;
 	int *d_min;
+	int *d_min_index;
 
 	// allocate stuff
 	h_used = (bool*) malloc(sizeof(bool) * size);
@@ -72,6 +88,7 @@ void dijktra(int **graph, int size, int src) {
 	cudaMalloc((void**) &d_min, sizeof(int));
 	cudaMalloc((void**) &d_mutex, sizeof(int));
 	cudaMalloc((void**) &d_dist, sizeof(int) * size);
+	cudaMalloc((void**) &d_min_index, sizeof(int)*size);
 
 	// computations
 	#pragma omp parallel for
@@ -89,8 +106,8 @@ void dijktra(int **graph, int size, int src) {
 		printf("Starting execution %d of %d\n", iii, size - 1);
 		// minDistance(h_dist, h_used, h_min, *size);// more efficient to run on CPU than offloading to GPU
 		cudaMemcpy(d_used, h_used, sizeof(bool)*size, cudaMemcpyHostToDevice);
-		find_minimum_kernel<<< BLOCK_SIZE, THREAD_SIZE >>>(d_dist, d_used, d_min, d_mutex, size);// GPU implementation anyway - could we check the entire graph
-		cudaMemcpy(&min_calculated, d_min, sizeof(int), cudaMemcpyDeviceToHost);
+		find_minimum_kernel<<< BLOCK_SIZE, THREAD_SIZE >>>(d_dist, d_used, d_min, d_min_index, d_mutex, size);// GPU implementation anyway - could we check the entire graph
+		cudaMemcpy(&min_calculated, d_min_index, sizeof(int), cudaMemcpyDeviceToHost);
 		cudaMemcpy(h_dist, d_dist, sizeof(int)*size, cudaMemcpyDeviceToHost);
 		printf("Successfully read min at %d\n", min_calculated);
 		h_used[min_calculated] = true;
