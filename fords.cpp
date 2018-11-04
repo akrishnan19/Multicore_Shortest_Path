@@ -5,36 +5,26 @@
 #include <limits.h> 
 #include <omp.h>
 
+void minDistance(int *dist, int *used, int *min_index) {
+    int min = INT_MAX; 
+   
+   for (int v = 0; v < V; v++)
+     if (used[v] == false && dist[v] <= min) 
+         min = dist[v], *min_index = v;
+}
 
-void ford(int graph[V][V], int n) {
-    vector <int> v [2000 + 10];
-    int dis [1000 + 10];
-
-    for(int i = 0; i < m + 2; i++){
-
-        v[i].clear();
-        dis[i] = 2e9;
+void ford(int** incidence_matrix, int n, int src) {
+    // Initialize nxn matrix for distance from each node to each other node
+    // Dist to itself is 0, else is INT_MAX
+    int* dist = (int*) malloc(sizeof(int)*n);
+    dist[0] = 0;
+    for(int i = 1; i < n; i++) {
+        dist[i] = INT_MAX;
     }
 
-   for(int i = 0; i < m; i++){
-
-        scanf("%d%d%d", &from , &next , &weight);
-
-        v[i].push_back(from);
-        v[i].push_back(next);
-        v[i].push_back(weight);
-   }
-
-    dis[0] = 0;
-    for(int i = 0; i < n - 1; i++){
-        int j = 0;
-        while(v[j].size() != 0){
-
-            if(dis[ v[j][0]  ] + v[j][2] < dis[ v[j][1] ] ){
-                dis[ v[j][1] ] = dis[ v[j][0]  ] + v[j][2];
-            }
-            j++;
-        }
+    // Find distance for each pair of vertecies
+    for(int i = 0; i < n; i ++) {
+        
     }
 }
 
@@ -77,7 +67,7 @@ int main(int argc, char *argv[]) {
     
     incidence_matrix = read_file(argv[1], &vertices);
 
-    dijktra(incidence_matrix, vertices, atoi(argv[2]));
+    ford(incidence_matrix, vertices, argv[2]);
 
     free(incidence_matrix);
 
