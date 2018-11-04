@@ -5,3 +5,5 @@
 *.cubin
 *.fatbin
 *.out
+*.sublime-project
+*.sublime-workspace
