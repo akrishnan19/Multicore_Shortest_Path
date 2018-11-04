@@ -54,6 +54,20 @@ __global__ void find_minimum_kernel(int *dist, bool* used, int* min, int* min_in
 	}
 }
 
+__global__ void update_dist_kernel(int *dist, bool *used, int **graph, int u, int n) {
+	unsigned int jjj = threadIdx.x + blockIdx.x * blockDim.x;
+
+	if(jjj < n) {
+		printf("%d\n", graph[u][jjj]);
+		if(used[jjj] &&
+		(dist[u] != INT_MAX) &&
+		(dist[u] + graph[u][jjj] < dist[jjj]) &&
+		graph[u][jjj]) {
+			dist[jjj] = dist[u] + graph[u][jjj];
+		}
+	}
+}
+
 void printResults(int dist[], int n) { 
 	printf("Vertex\t\tDistance from Source\n");
 	for (int i = 0; i < n; i++)
@@ -69,6 +83,7 @@ void dijktra(int **graph, int size, int src) {
 	int *d_mutex;
 	int *d_min;
 	int *d_min_index;
+	int **d_graph;
 	int MAX = INT_MAX;
 
 	// allocate stuff
@@ -81,6 +96,7 @@ void dijktra(int **graph, int size, int src) {
 	cudaMalloc((void**) &d_mutex, sizeof(int));
 	cudaMalloc((void**) &d_dist, sizeof(int) * size);
 	cudaMalloc((void**) &d_min_index, sizeof(int)*size);
+	cudaMalloc((void***) &d_graph, sizeof(int) * size * size);
 
 	// computations
 	#pragma omp parallel for
@@ -91,17 +107,22 @@ void dijktra(int **graph, int size, int src) {
 
 	h_dist[src] = 0;
 	dim3 THREAD_SIZE = 256; // can't use variable size so everything is hard-coded
-	dim3 BLOCK_SIZE = 256; // 
+	dim3 BLOCK_SIZE = 256;
+
+	cudaMemcpy(d_graph, graph, sizeof(int) * size * size, cudaMemcpyHostToDevice);
+	
 
 	for(int iii = 0; iii < size - 1; iii++) {
-		int min_calculated;
+		int min_calculated = -1;
+
+		printf("Starting iteration %d of %d\n", iii + 1, size - 1);
 
 		cudaMemcpy(d_min, &MAX, sizeof(int), cudaMemcpyHostToDevice);
 		cudaMemset((void*) d_min_index, -1, sizeof(int));
-		cudaMemcpy(d_used, h_used, sizeof(bool)*size, cudaMemcpyHostToDevice);
 		cudaMemcpy(d_dist, h_dist, sizeof(int)*size, cudaMemcpyHostToDevice);
+		cudaMemcpy(d_used, h_used, sizeof(bool)*size, cudaMemcpyHostToDevice);
 
-		find_minimum_kernel<<< BLOCK_SIZE, THREAD_SIZE >>>(d_dist, d_used, d_min, d_min_index, d_mutex, size);// GPU implementation anyway - could we check the entire graph
+		find_minimum_kernel<<< BLOCK_SIZE, 1 >>>(d_dist, d_used, d_min, d_min_index, d_mutex, size);// GPU implementation anyway - could we check the entire graph
 
 		cudaMemcpy(&min_calculated, d_min_index, sizeof(int), cudaMemcpyDeviceToHost);
 		if(min_calculated == -1) {
@@ -109,7 +130,14 @@ void dijktra(int **graph, int size, int src) {
 			exit(-1);
 		}
 		h_used[min_calculated] = true;
+		printf("min calculated as %d\n", min_calculated);
 
+		cudaMemcpy(&d_used[min_calculated], &h_used[min_calculated], sizeof(bool) * size, cudaMemcpyHostToDevice);
+		/*
+		update_dist_kernel<<< BLOCK_SIZE, THREAD_SIZE >>>(d_dist, d_used, d_graph, min_calculated, size * size);
+		cudaMemcpy(h_dist, d_dist, sizeof(int) * size, cudaMemcpyDeviceToHost);
+		*/
+		
 		#pragma omp parallel for
 		for(int jjj = 0; jjj < size; jjj++) {
 			if(!h_used[jjj] &&
@@ -119,6 +147,7 @@ void dijktra(int **graph, int size, int src) {
 				h_dist[jjj] = h_dist[min_calculated] + graph[min_calculated][jjj];
 			}
 		}
+		
 	}
 
 	printResults(h_dist, size);
