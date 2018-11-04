@@ -86,11 +86,13 @@ void dijktra(int **graph, int size, int src) {
 
 	for(int iii = 0; iii < size - 1; iii++) {
 		int min_calculated = INT_MAX;
+		printf("Starting execution %d of %d\n", iii, size - 1);
 		// minDistance(h_dist, h_used, h_min, *size);// more efficient to run on CPU than offloading to GPU
 		cudaMemcpy(d_used, h_used, sizeof(bool)*size, cudaMemcpyHostToDevice);
-		find_minimum_kernel<<< BLOCK_SIZE, THREAD_SIZE >>>(d_dist, du_used, d_min, d_mutex, size);// GPU implementation anyway - could we check the entire graph
+		find_minimum_kernel<<< BLOCK_SIZE, THREAD_SIZE >>>(d_dist, d_used, d_min, d_mutex, size);// GPU implementation anyway - could we check the entire graph
 		cudaMemcpy(&min_calculated, d_min, sizeof(int), cudaMemcpyDeviceToHost);
 		cudaMemcpy(h_dist, d_dist, sizeof(int)*size, cudaMemcpyDeviceToHost);
+		printf("Successfully read min at %d\n", min_calculated);
 		h_used[min_calculated] = true;
 
 		for(int jjj = 0; jjj < size; jjj++){
