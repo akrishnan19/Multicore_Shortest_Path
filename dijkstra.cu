@@ -15,7 +15,7 @@ void minDistance(int *dist, int *used, int *min_index, int numV) {
          min = dist[v], *min_index = v;
 }
 
-__global__ void find_minimum_kernel(int *dist, int *min, int *mutex, unsigned int n) {
+__global__ void find_minimum_kernel(int *dist, bool* used, int* min, int *mutex, unsigned int n) {
 	unsigned int index = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int stride = gridDim.x * blockDim.x;
 	unsigned int offset = 0;
@@ -66,6 +66,7 @@ void dijktra(int **graph, int size, int src) {
 	h_dist = (int*) malloc(sizeof(int) * size);
 	h_mutex = (int*) malloc(sizeof(int));
 	h_min = (int*) malloc(sizeof(int));
+	
 
 	cudaMalloc((void**) &d_used, sizeof(int) * size);
 	cudaMalloc((void**) &d_min, sizeof(int));
@@ -86,16 +87,19 @@ void dijktra(int **graph, int size, int src) {
 	for(int iii = 0; iii < size - 1; iii++) {
 		int min_calculated = INT_MAX;
 		// minDistance(h_dist, h_used, h_min, *size);// more efficient to run on CPU than offloading to GPU
-		find_minimum_kernel<<< BLOCK_SIZE, THREAD_SIZE >>>(d_dist, d_min, d_mutex, size);// GPU implementation anyway
-		min_calculated = *d_min;// quality-of-life variable
+		cudaMemcpy(d_used, h_used, sizeof(bool)*size, cudaMemcpyHostToDevice);
+		find_minimum_kernel<<< BLOCK_SIZE, THREAD_SIZE >>>(d_dist, du_used, d_min, d_mutex, size);// GPU implementation anyway - could we check the entire graph
+		cudaMemcpy(&min_calculated, d_min, sizeof(int), cudaMemcpyDeviceToHost);
+		cudaMemcpy(h_dist, d_dist, sizeof(int)*size, cudaMemcpyDeviceToHost);
 		h_used[min_calculated] = true;
 
 		for(int jjj = 0; jjj < size; jjj++){
 			if(!h_used[iii] &&
-				(d_dist[min_calculated] != INT_MAX) &&
-				(d_dist[min_calculated] + graph[min_calculated][jjj] < d_dist[jjj])
+				(h_dist[min_calculated] != INT_MAX) &&
+				(h_dist[min_calculated] + graph[min_calculated][jjj] < h_dist[jjj]) &&
 				graph[min_calculated][jjj]){
-					d_dist[jjj] = d_dist[min_calculated] + graph[min_calculated][jjj];
+					h_dist[jjj] = h_dist[min_calculated] + graph[min_calculated][jjj];
+
 			}
 		}
 	}
