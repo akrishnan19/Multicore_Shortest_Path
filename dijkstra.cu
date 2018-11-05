@@ -67,10 +67,11 @@ __global__ void update_dist_kernel(int *dist, bool *used, int *graph, int u, int
 	}
 }
 
-void printResults(int dist[], int n, int source) { 
+void printResults(int dist[], int n, float time, int source) { 
 	printf("Vertex\t\tDistance from Source Vertex %d\n", source);
 	for (int i = 0; i < n; i++)
 		printf("%d\t\t%d\n", i, dist[i]);
+	printf("Dijkstra shortest paths took: %lf milliseconds\n", time);
 	printf("\n\n");
 } 
 
@@ -85,6 +86,11 @@ void dijktra(int **graph, int size, int src) {
 	int *d_min_index;
 	int *d_graph;
 	int MAX = INT_MAX;
+	float kernel_time = 0;
+	cudaEvent_t start, stop;
+	cudaEventCreate(&start);
+	cudaEventCreate(&stop);
+	cudaEventRecord(start);
 
 	// allocate stuff
 	h_used = (bool*) malloc(sizeof(bool) * size);
@@ -117,8 +123,10 @@ void dijktra(int **graph, int size, int src) {
 
 		cudaMemcpy(d_min, &MAX, sizeof(int), cudaMemcpyHostToDevice);
 		cudaMemset(d_min_index, -1, sizeof(int));
-
+		
 		find_minimum_kernel<<< BLOCK_SIZE, THREAD_SIZE >>>(d_dist, d_used, d_min, d_min_index, d_mutex, size);
+		
+
 
 		cudaMemcpy(&min_calculated, d_min_index, sizeof(int), cudaMemcpyDeviceToHost);
 
@@ -147,7 +155,11 @@ void dijktra(int **graph, int size, int src) {
 		*/
 	}
 	cudaMemcpy(h_dist, d_dist, sizeof(int) * size, cudaMemcpyDeviceToHost);
-	printResults(h_dist, size, src);
+
+	cudaEventRecord(stop);
+	cudaEventSynchronize(stop);
+	cudaEventElapsedTime(&kernel_time, start, stop);
+	printResults(h_dist, size, kernel_time, src);
 
 	// free later
 	free(h_used);
