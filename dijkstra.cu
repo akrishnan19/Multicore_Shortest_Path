@@ -67,10 +67,11 @@ __global__ void update_dist_kernel(int *dist, bool *used, int *graph, int u, int
 	}
 }
 
-void printResults(int dist[], int n) { 
-	printf("Vertex\t\tDistance from Source\n");
+void printResults(int dist[], int n, int source) { 
+	printf("Vertex\t\tDistance from Source Vertex %d\n", source);
 	for (int i = 0; i < n; i++)
 		printf("%d\t\t%d\n", i, dist[i]);
+	printf("\n\n");
 } 
 
 void dijktra(int **graph, int size, int src) {
@@ -146,7 +147,7 @@ void dijktra(int **graph, int size, int src) {
 		*/
 	}
 	cudaMemcpy(h_dist, d_dist, sizeof(int) * size, cudaMemcpyDeviceToHost);
-	printResults(h_dist, size);
+	printResults(h_dist, size, src);
 
 	// free later
 	free(h_used);
@@ -192,15 +193,16 @@ int main(int argc, char *argv[]) {
 	int **incidence_matrix;
 	int vertices;
 
-	if(argc != 3) {
+	if(argc != 2) {
 		printf("Incorrect usage\n"); // sanity check
-		printf("Correct usage: ./dijktra path_to_file source_vertex");
+		printf("Correct usage: ./dijktra path_to_file");
 		exit(1);
 	}
 	
 	incidence_matrix = read_file(argv[1], &vertices);
 
-	dijktra(incidence_matrix, vertices, atoi(argv[2]));
+	for(int iii = 0; iii < vertices; iii++)
+		dijktra(incidence_matrix, vertices, iii);
 
 	free(incidence_matrix);
 
