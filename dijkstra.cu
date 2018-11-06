@@ -195,6 +195,10 @@ int** read_file(char *file_name, int *vertices) {
 	for(int iii = 0; iii < v; iii++) {
 		for(int jjj = 0; jjj < v; jjj++) {
 			fscanf(f, "%d", &incidence_matrix[iii][jjj]);
+			if(incidence_matrix[iii][jjj] < 0) {
+				printf("Error: negative edge weight found at %d, %d\n", iii, jjj);
+				exit(-1);
+			}
 		}
 	}
 
