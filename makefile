@@ -3,10 +3,10 @@
 #'make clean' to clean up the place
 
 default:
-	@echo Please specify make target: dijkstra, clean
+	@echo Please specify make target: dijkstra, fords, clean
 dijkstra:
 	nvcc -o dijkstra.out dijkstra.cu
 fords:
 	nvcc -o fords.out fords.cu
 clean:
-	rm -f dijkstra.out 
+	rm -f dijkstra.out fords.out
