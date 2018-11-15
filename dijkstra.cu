@@ -197,7 +197,7 @@ int main(int argc, char *argv[]) {
 	int **incidence_matrix;
 	int vertices;
 
-	if(argc != 2) {
+	if(argc < 2 || argc > 3) {
 		printf("Incorrect usage\n"); // sanity check
 		printf("Correct usage: ./dijktra path_to_file");
 		exit(1);
@@ -205,8 +205,11 @@ int main(int argc, char *argv[]) {
 	
 	incidence_matrix = read_file(argv[1], &vertices);
 
-	for(int iii = 0; iii < vertices; iii++)
-		dijktra(incidence_matrix, vertices, iii);
+	if(argc == 2)
+		for(int iii = 0; iii < vertices; iii++)
+			dijktra(incidence_matrix, vertices, iii);
+	else
+		dijktra(incidence_matrix, vertices, atoi(argv[2]));
 
 	free(incidence_matrix);
 

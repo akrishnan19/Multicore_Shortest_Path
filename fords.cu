@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
     int *incidence_matrix;
     int vertices;
 
-    if(argc != 2) {
+    if(argc < 2 || argc > 3) {
         printf("Incorrect usage\n"); // sanity check
         printf("Correct usage: ./ford path_to_file\n");
         exit(1);
@@ -104,8 +104,11 @@ int main(int argc, char *argv[]) {
     
     incidence_matrix = read_file(argv[1], &vertices);
 
-    for(int iii = 0; iii < vertices; iii++)
-    	fords(incidence_matrix, vertices, iii);
+    if(argc == 2)
+		for(int iii = 0; iii < vertices; iii++)
+			fords(incidence_matrix, vertices, iii);
+	else
+		fords(incidence_matrix, vertices, atoi(argv[2]));
 
     free(incidence_matrix);
 

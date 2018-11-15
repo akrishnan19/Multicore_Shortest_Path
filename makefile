@@ -5,8 +5,8 @@
 default:
 	@echo Please specify make target: dijkstra, fords, clean
 dijkstra:
-	nvcc -o dijkstra.out dijkstra.cu
+	nvcc -o dijkstra dijkstra.cu
 fords:
-	nvcc -o fords.out fords.cu
+	nvcc -o fords fords.cu
 clean:
-	rm -f dijkstra.out fords.out
+	rm -f dijkstra fords
