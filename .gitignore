@@ -7,4 +7,6 @@
 *.out
 *.sublime-project
 *.sublime-workspace
+gen_test.txt
+golden_standard.txt
 /graph_imports
