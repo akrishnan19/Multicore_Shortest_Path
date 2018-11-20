@@ -7,7 +7,7 @@
 ### Structure of input file:
 1. Line 1 contains number of vertices
 
-2. Incidence matrix with the following properties:
+2. Connectivity matrix with the following properties:
     1. All new rows are in a new line
     2. There is a space after each value including the last value of the row
     3. An empty line at the end of the file to signify EOF
