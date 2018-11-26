@@ -4,6 +4,7 @@
 #include <limits.h> 
 #include <malloc.h>
 #include <omp.h>
+#include <time.h>
 
 __global__ void fords_kernel(int n, uint *mat, uint *dist) {
 	int index = blockDim.x * blockIdx.x + threadIdx.x;
@@ -95,6 +96,7 @@ int* read_file(char *file_name, int *vertices) {
 int main(int argc, char *argv[]) {
     int *incidence_matrix;
     int vertices;
+	// clock_t start, end;
 
     if(argc < 2 || argc > 3) {
         printf("Incorrect usage\n"); // sanity check
@@ -103,13 +105,15 @@ int main(int argc, char *argv[]) {
     }
     
     incidence_matrix = read_file(argv[1], &vertices);
-
+	
+	// start = clock();
     if(argc == 2)
 		for(int iii = 0; iii < vertices; iii++)
 			fords(incidence_matrix, vertices, iii);
 	else
 		fords(incidence_matrix, vertices, atoi(argv[2]));
-
+	// end = clock();
+	// printf("Time taken is %lf\n", ((double) end - start) / CLOCKS_PER_SEC);
     free(incidence_matrix);
 
     return 0;
