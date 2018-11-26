@@ -7,7 +7,7 @@
 ### Structure of input file:
 1. Line 1 contains number of vertices
 
-2. Connectivity matrix with the following properties:
+2. Connectivity matrix with the following properties: (can be generated with `./test_gen.py [number of nodes] [maximum weight of edges]`
     1. All new rows are in a new line
     2. There is a space after each value including the last value of the row
     3. An empty line at the end of the file to signify EOF
@@ -25,8 +25,7 @@
 
 3. Algorithms Implemented:
     1. Dijkstra's Algorithm
-        1. By Akaash
-        2. TODO: time/work complexity
+        1. Time complexity: O(n)
     2. Bellman Ford's Algorithm
-        1. By Beathan
-        2. TODO: time/work complexity
+        1. Time complexity: O(nlogn)
+	![Timing diagram](https://raw.githubusercontent.com/akrishnan19/Multicore_Shortest_Path/master/timing_diagram.png)
