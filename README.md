@@ -1,8 +1,8 @@
 # Multicore_Shortest_Path
 ### Instructions for use:
 1. run make [dijkstra] [fords]
-2. ./dijkstra path_to_file source_vertex or ./dijkstra path_to_file
-3. ./fords path_to_file source_vertex or ./fords path_to_file
+2. `./dijkstra [path_to_file] [source_vertex]` or `./dijkstra [path_to_file]`
+3. `./fords [path_to_file] [source_vertex]` or `./fords [path_to_file]`
 
 ### Structure of input file:
 1. Line 1 contains number of vertices
