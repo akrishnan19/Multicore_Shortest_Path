@@ -24,8 +24,9 @@
         ```
 
 3. Algorithms Implemented:
-    1. Dijkstra's Algorithm
-        1. Time complexity: O(n)
-    2. Bellman Ford's Algorithm
-        1. Time complexity: O(nlogn)
-	![Timing diagram](https://raw.githubusercontent.com/akrishnan19/Multicore_Shortest_Path/master/timing_diagram.png)
+    1. Dijkstra's Algorithm (m edges, n nodes)
+        1. Time complexity: O(n), Work complexity: O(m\*n)
+    2. Bellman Ford's Algorithm (m edges, n nodes)
+        1. Time complexity: O(nlogn), Work complexity: O(nlogn)
+	
+![Timing diagram](https://raw.githubusercontent.com/akrishnan19/Multicore_Shortest_Path/master/timing_diagram.png)
