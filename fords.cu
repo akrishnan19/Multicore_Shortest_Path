@@ -6,6 +6,8 @@
 #include <omp.h>
 #include <time.h>
 
+#define GPU 1
+
 __global__ void fords_kernel(int n, uint *mat, uint *dist) {
 	int index = blockDim.x * blockIdx.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
@@ -51,14 +53,26 @@ void fords(int *incidence_matrix, int n, int src) {
 	dim3 THREAD_SIZE = 256; // can't use variable size so everything is hard-coded
 	dim3 BLOCK_SIZE = 256;
 
+	#if GPU
 	for(int iii = 0; iii < n; iii++) {
 		// printf("Starting iteration %d of %d\n", iii + 1, n);
 		fords_kernel<<< BLOCK_SIZE, THREAD_SIZE >>>(n, d_mat, d_dist);
 	}
-
 	cudaMemcpy(h_dist, d_dist, sizeof(uint) * n, cudaMemcpyDeviceToHost);
-
 	printResults(h_dist, n, src);
+	#endif
+
+	#if !GPU
+	for(int iii = 0; iii < n; iii++) {
+		for(int jjj = 0; jjj < n; jjj++) {
+			if(incidence_matrix[iii * n + jjj] != 0 && h_dist[jjj] != INT_MAX) {
+				int tempDistance = h_dist[jjj] + incidence_matrix[iii * n + jjj];
+				if(tempDistance < h_dist[iii]) h_dist[iii] = tempDistance;
+			}
+		}
+	}
+	printResults(h_dist, n, src);
+	#endif
 
 	cudaFree(d_mat);
 	cudaFree(d_dist);
@@ -96,7 +110,7 @@ int* read_file(char *file_name, int *vertices) {
 int main(int argc, char *argv[]) {
     int *incidence_matrix;
     int vertices;
-	// clock_t start, end;
+	clock_t start, end;
 
     if(argc < 2 || argc > 3) {
         printf("Incorrect usage\n"); // sanity check
@@ -106,14 +120,14 @@ int main(int argc, char *argv[]) {
     
     incidence_matrix = read_file(argv[1], &vertices);
 	
-	// start = clock();
+	start = clock();
     if(argc == 2)
 		for(int iii = 0; iii < vertices; iii++)
 			fords(incidence_matrix, vertices, iii);
 	else
 		fords(incidence_matrix, vertices, atoi(argv[2]));
-	// end = clock();
-	// printf("Time taken is %lf\n", ((double) end - start) / CLOCKS_PER_SEC);
+	end = clock();
+	printf("Time taken is %lf\n", ((double) end - start) / CLOCKS_PER_SEC);
     free(incidence_matrix);
 
     return 0;

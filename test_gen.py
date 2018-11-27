@@ -86,9 +86,10 @@ for i in range(int(sys.argv[1])):
 	for j in range(1, int(sys.argv[1])):
 		f.write(" " + str(G[i][j]))
 	f.write(" \n");
-
-graph = Graph(int(sys.argv[1]))
-graph.graph = G
-sys.stdout = open("golden_standard.txt", "w+")
-for i in range(int(sys.argv[1])):
-	graph.dijkstra(i)
+gen_golden = 0
+if(gen_golden):
+    graph = Graph(int(sys.argv[1]))
+    graph.graph = G
+    sys.stdout = open("golden_standard.txt", "w+")
+    for i in range(int(sys.argv[1])):
+        graph.dijkstra(i)

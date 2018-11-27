@@ -5,6 +5,8 @@
 #include <omp.h>
 #include <time.h>
 
+#define GPU 1
+
 __global__ void find_minimum_kernel(int *dist, bool* used, int* min, int* min_index, int *mutex, unsigned int n) {
 	unsigned int index = threadIdx.x + blockIdx.x * blockDim.x;
 	unsigned int stride = gridDim.x * blockDim.x;
@@ -75,6 +77,18 @@ void printResults(int dist[], int n, int source) {
 	printf("\n\n");
 } 
 
+int minDistance(int dist[], bool sptSet[], int V) { 
+   // Initialize min value 
+   int min = INT_MAX, min_index; 
+   
+   for (int v = 0; v < V; v++) 
+     if (sptSet[v] == false && dist[v] <= min) 
+         min = dist[v], min_index = v; 
+   
+   return min_index; 
+} 
+
+
 void dijktra(int **graph, int size, int src) {
 	bool *h_used;
 	bool *d_used;
@@ -113,6 +127,7 @@ void dijktra(int **graph, int size, int src) {
 	cudaMemcpy(d_dist, h_dist, sizeof(int)*size, cudaMemcpyHostToDevice);
 	cudaMemcpy(d_used, h_used, sizeof(bool)*size, cudaMemcpyHostToDevice);
 
+	#if GPU
 	for(int iii = 0; iii < size - 1; iii++) {
 		int min_calculated = -1;
 
@@ -133,8 +148,15 @@ void dijktra(int **graph, int size, int src) {
 		
 		cudaMemcpy(d_graph, graph[min_calculated], sizeof(int) * size, cudaMemcpyHostToDevice);
 		update_dist_kernel<<< BLOCK_SIZE, THREAD_SIZE >>>(d_dist, d_used, d_graph, min_calculated, size);
-		
-		/*
+	}
+	cudaMemcpy(h_dist, d_dist, sizeof(int) * size, cudaMemcpyDeviceToHost);
+	printResults(h_dist, size, src);
+	#endif
+	
+	#if !GPU
+	for(int iii = 0; iii < size - 1; iii++) {
+		int min_calculated = minDistance(h_dist, h_used, size);
+		h_used[min_calculated] = true;
 		#pragma omp parallel for
 		for(int jjj = 0; jjj < size; jjj++) {
 			if(!h_used[jjj] &&
@@ -142,13 +164,12 @@ void dijktra(int **graph, int size, int src) {
 			(h_dist[min_calculated] + graph[min_calculated][jjj] < h_dist[jjj]) &&
 			graph[min_calculated][jjj]) {
 				h_dist[jjj] = h_dist[min_calculated] + graph[min_calculated][jjj];
-				printf("got in\n");
 			}
 		}
-		*/
 	}
-	cudaMemcpy(h_dist, d_dist, sizeof(int) * size, cudaMemcpyDeviceToHost);
 	printResults(h_dist, size, src);
+	#endif
+	
 
 	// free later
 	free(h_used);
@@ -197,7 +218,7 @@ int** read_file(char *file_name, int *vertices) {
 int main(int argc, char *argv[]) {
 	int **incidence_matrix;
 	int vertices;
-	// clock_t start, end;
+	clock_t start, end;
 
 	if(argc < 2 || argc > 3) {
 		printf("Incorrect usage\n"); // sanity check
@@ -207,14 +228,14 @@ int main(int argc, char *argv[]) {
 	
 	incidence_matrix = read_file(argv[1], &vertices);
 	
-	// start = clock();
+	start = clock();
 	if(argc == 2)
 		for(int iii = 0; iii < vertices; iii++)
 			dijktra(incidence_matrix, vertices, iii);
 	else
 		dijktra(incidence_matrix, vertices, atoi(argv[2]));
-	// end = clock();
-	// printf("Time taken: %lf\n", ((double) (end - start)) / CLOCKS_PER_SEC);
+	end = clock();
+	printf("Time taken: %lf\n", ((double) (end - start)) / CLOCKS_PER_SEC);
 	free(incidence_matrix);
 
 	return 0;
