@@ -27,6 +27,6 @@
     1. Dijkstra's Algorithm (m edges, n nodes)
         1. Time complexity: O(n), Work complexity: O(m\*n)
     2. Bellman Ford's Algorithm (m edges, n nodes)
-        1. Time complexity: O(nlogn), Work complexity: O(nlogn)
+        1. Time complexity: O(nlogn), Work complexity: O((n^2)logn)
 	
 ![Timing diagram](https://raw.githubusercontent.com/akrishnan19/Multicore_Shortest_Path/master/timing_diagram.png)
